@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-use warnings;
+#use warnings;
 use strict;
 use HTTP::Request::Common;
 use LWP::UserAgent;
@@ -134,8 +134,35 @@ if ($response->is_success) {
     $np->nagios_exit(CRITICAL, "Connection failed: ".$response->status_line);
 }
 
+#remove pretty format, remove VRA Garbage after JSON Object
+#split in to indivdual obj, remove all [ / ] and substitue empty [] by ""
+#Check if VRA Garbage present
+#use output for function decode_json
+
+my $response_clean = $response->content;
+#if ($response_clean =~ m/{"status_code":/) {};
+
+$response_clean =~ s/\n//g;
+$response_clean =~ s/\R//g;
+$response_clean =~ s/ //g;
+$response_clean =~ m/{"status_code":/;
+$response_clean = "$`";
+$response_clean =~ s/{"category":/{"obj1":{"category":/;
+
+#loop over obj
+my $max_obj = ()= $response_clean =~ /,{"category":/g;
+$max_obj=$max_obj+2;
+for(my $obj = 2; $obj < $max_obj; $obj = $obj + 1 ) {
+   $response_clean =~ s/,{"category":/,"obj$obj":{"category":/;
+};
+
+$response_clean =~ s/(})(?!.*\1)/}}/g;
+$response_clean =~ s/\[\]/""/g;
+$response_clean =~ s/\[//g;
+$response_clean =~ s/\]//g;
+
 ## Parse JSON
-my $json_response = decode_json($response->content);
+my $json_response = decode_json($response_clean);
 if ($np->opts->verbose) { (print Dumper ($json_response))};
 
 my @attributes = split(',', $np->opts->attributes);
@@ -164,8 +191,14 @@ foreach my $attribute (sort keys %attributes){
         $check_value = $check_value/$attributes{$attribute}{'divisor'};
 }
 
+    my $check_name;
+    $check_name = (split ('->', $attribute))[0];
+    $check_name = "${check_name}->{name}";
+    my $check_name_str = '$check_name = $json_response->'.$check_name;
+    eval $check_name_str;
+
 if (defined $np->opts->expect && $np->opts->expect ne $check_value) {
-    $np->nagios_exit(CRITICAL, "Expected value (" . $np->opts->expect . ") not found. Actual: " . $check_value);
+    $np->nagios_exit(CRITICAL, "Expected value (" . $np->opts->expect . ") not found. Actual: " . $check_name . " : " . $check_value);
     }
 
     if ( $check_value eq "true" or $check_value eq "false" ) {
