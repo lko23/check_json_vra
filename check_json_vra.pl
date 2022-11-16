@@ -142,11 +142,11 @@ if ($response->is_success) {
 my $response_clean = $response->content;
 #if ($response_clean =~ m/{"status_code":/) {};
 
-$response_clean =~ s/\n//g;
-$response_clean =~ s/\R//g;
-$response_clean =~ s/ //g;
-$response_clean =~ m/{"status_code":/;
-$response_clean = "$`";
+$response_clean =~ s/\s+//g;
+if ($response_clean =~ m/{"status_code":/) {
+        $response_clean =~ m/{"status_code":/;
+        $response_clean = "$`";
+        };
 $response_clean =~ s/{"category":/{"obj1":{"category":/;
 
 #loop over obj
