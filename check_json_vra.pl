@@ -5,10 +5,10 @@ use strict;
 use HTTP::Request::Common;
 use LWP::UserAgent;
 use JSON;
-use Nagios::Plugin;
+use Nagios::Monitoring::Plugin;
 use Data::Dumper;
 
-my $np = Nagios::Plugin->new(
+my $np = Nagios::Monitoring::Plugin->new(
     usage => "Usage: %s -u|--url <http://user:pass\@host:port/url> -a|--attributes <attributes> "
     . "[ -c|--critical <thresholds> ] [ -w|--warning <thresholds> ] "
     . "[ -e|--expect <value> ] "
@@ -134,22 +134,26 @@ if ($response->is_success) {
     $np->nagios_exit(CRITICAL, "Connection failed: ".$response->status_line);
 }
 
-#remove pretty format, remove VRA Garbage after JSON Object
-#split in to indivdual obj, remove all [ / ] and substitue empty [] by ""
-#Check if VRA Garbage present
+# remove pretty format, remove VRA Garbage after JSON Object
+# split in to indivdual obj, remove all [ / ] and substitue empty [] by ""
+# Check if VRA Garbage present
+# Remove all special Chars, remove garbage only if present
 #use output for function decode_json
 
 my $response_clean = $response->content;
 #if ($response_clean =~ m/{"status_code":/) {};
 
+#$response_clean =~ s/\n//g;
+#$response_clean =~ s/\R//g;
+#$response_clean =~ s/ //g;
 $response_clean =~ s/\s+//g;
 if ($response_clean =~ m/{"status_code":/) {
-        $response_clean =~ m/{"status_code":/;
-        $response_clean = "$`";
-        };
+	$response_clean =~ m/{"status_code":/;
+	$response_clean = "$`";
+	};
 $response_clean =~ s/{"category":/{"obj1":{"category":/;
 
-#loop over obj
+# loop over obj
 my $max_obj = ()= $response_clean =~ /,{"category":/g;
 $max_obj=$max_obj+2;
 for(my $obj = 2; $obj < $max_obj; $obj = $obj + 1 ) {
@@ -191,6 +195,7 @@ foreach my $attribute (sort keys %attributes){
         $check_value = $check_value/$attributes{$attribute}{'divisor'};
 }
 
+# print proc name
     my $check_name;
     $check_name = (split ('->', $attribute))[0];
     $check_name = "${check_name}->{name}";
